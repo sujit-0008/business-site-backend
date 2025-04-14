@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  message   String
+  type      String   // e.g., "kyc", "product"
+  supplierId Int
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  supplier  Supplier @relation(fields: [supplierId], references: [id])
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  photo       String?
+  description String?
+  type        String?  // e.g., Electronics, Clothing
+  category    String?  // e.g., Laptops, Shirts
+  price       Float
+  supplierId  Int
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  approved    Boolean  @default(false) // For admin approval
+}
+
+model Supplier {
+  id              Int       @id @default(autoincrement())
+  ownerName       String
+  ownerPhoto      String?
+  email           String    @unique
+  phone           String
+  companyName     String
+  address         String
+  password        String
+  companyPhotos   String[]
+  kycBusinessReg  String?
+  kycTaxId        String?
+  kycAddressProof String?
+  kycApproved     Boolean   @default(false)
+  products        Product[]
+  emailVerified   Boolean   @default(false)
+  verificationToken String? @unique
+  verificationTokenExpiry DateTime?
+  notifications   Notification[]
+}

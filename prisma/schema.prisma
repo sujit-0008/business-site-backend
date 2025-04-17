@@ -11,15 +11,21 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
+enum Role {
+  ADMIN
+  SUPPLIER
+  CUSTOMER // For future use
+}
 model Notification {
   id        Int      @id @default(autoincrement())
   message   String
   type      String   // e.g., "kyc", "product"
   supplierId Int
+  productId Int?     // Optional, links to a specific product
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   supplier  Supplier @relation(fields: [supplierId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id])
 }
 
 model Product {
@@ -33,6 +39,7 @@ model Product {
   supplierId  Int
   supplier    Supplier @relation(fields: [supplierId], references: [id])
   approved    Boolean  @default(false) // For admin approval
+  notifications Notification[] // Opposite relation to Notification
 }
 
 model Supplier {
@@ -54,4 +61,5 @@ model Supplier {
   verificationToken String? @unique
   verificationTokenExpiry DateTime?
   notifications   Notification[]
+  role            Role      @default(SUPPLIER) // Default to supplier
 }

@@ -33,7 +33,6 @@ router.post(
         try {
 
             const hashedPassword = await hashPassword(password);
-
             //verificationToken
             const verificationToken = Math.random().toString(36).substring(2, 15);
 //
@@ -100,16 +99,16 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
     const supplier = await prisma.supplier.findUnique({ where: { email } });
     if (!supplier || !(await comparePassword(password, supplier.password))) {
-        return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
-
+  
     if (!supplier.emailVerified) {
-        return res.status(403).json({ error: "Email not verified" });
+      return res.status(403).json({ error: "Email not verified" });
     }
-    let b= supplier.id
-    const token = generateToken(supplier.id);
-    res.json({ token ,b});
-});
+  
+    const token = generateToken({ userId: supplier.id, role: supplier.role });
+    res.json({ token });
+  });
 
 router.get("/getSuppliers", async (req, res) => {
     try {
@@ -129,39 +128,5 @@ router.post("/deleteSupplier", async (req, res) => {
         res.status(500).json({ error: 'Failed to delete supplier' });
     }
 });
-
-
-// KYC submission
-
-router.post('/kyc', upload.fields([{ name: "kycAdsressProof", maxCount: 1 }]), async (req, res) => {
-    const { businessReg, taxId } = req.body;
-    const supplierId = 1;// Replace with auth middleware later
-    const kycAddressProof = req.files["kycAddressProof"]?.[0]
-        ? `/uploads/${req.files["kycAddressProof"][0].filename}`
-        : null;
-    const supplier = await prisma.supplier.update({
-        where: { id: supplierId },
-        data: { kycBusinessReg: businessReg, kycTaxId: taxId, kycAddressProof }
-    })
-    await sendEmail(
-        supplier.email,
-        "KYC Submission",
-        `KYC submission received for supplier ${supplier.name}.Your KYC details have been submitted for review.`
-    )
-
-    // Notify admin via email
-    // const adminEmail = process.env.ADMIN_EMAIL;
-    // await sendEmail(
-    //   adminEmail,
-    //   "New KYC Submission",
-    //   `A new KYC submission has been made by supplier ID ${supplierId}. Please review it at http://localhost:5000/admin/kyc.`
-    // ).catch((err) => console.error("Admin notification failed:", err.message));
-
-    res.json({ message: "KYC submitted" });
-
-})
-
-
-
 
 module.exports = router;

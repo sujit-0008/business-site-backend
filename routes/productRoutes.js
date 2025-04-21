@@ -14,6 +14,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+//upload Product
+
 router.post("/products", authMiddleware, upload.single("productImage"), async (req, res) => {
     const supplierId = req.userId;
     const { name, description, price, type, category } = req.body;
@@ -55,6 +57,7 @@ router.post("/products", authMiddleware, upload.single("productImage"), async (r
     }
   });
 
+  //get product by supplier
 router.get("/products", authMiddleware, async (req, res) => {
     const supplierId = req.userId;
   
@@ -70,6 +73,7 @@ router.get("/products", authMiddleware, async (req, res) => {
       if (!supplier.kycApproved) {
         return res.status(403).json({ error: "KYC not approved. Cannot view products." });
       }
+      
   
       const products = await prisma.product.findMany({
         where: {
@@ -77,40 +81,20 @@ router.get("/products", authMiddleware, async (req, res) => {
           approved: true, // Only show approved products
         },
       });
-      res.status(200).json({ products });
+      
+     // Add BASE_URL to photo URLs
+    const productsWithUrls = products.map(product => ({
+      ...product,
+      photo: product.photo ? `${process.env.BASE_URL}${product.photo}` : null,
+    }));
+
+    res.status(200).json({ products: productsWithUrls });
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
 
-  router.get("/public/products", async (req, res) => {
-    try {
-      const products = await prisma.product.findMany({
-        where: { approved: true },
-        select: { id: true, name: true, photo: true, price: true },
-      });
-      res.status(200).json({ products });
-    } catch (error) {
-      console.error("Error fetching public products:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
 
-
-  router.get('/public/products/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-      const product = await prisma.product.findUnique({
-        where: { id: parseInt(id) },
-        where: { approved: true }, // Only approved products
-      });
-      if (!product) return res.status(404).json({ error: 'Product not found' });
-      res.json(product);
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
 
 module.exports = router;

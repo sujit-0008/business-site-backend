@@ -43,9 +43,9 @@ router.get("/kyc/:supplierId", async (req, res) => {
     res.status(200).json({
       supplierId: supplier.id,
       companyName: supplier.companyName,
-      kycBusinessReg: supplier.kycBusinessReg,
-      kycTaxId: supplier.kycTaxId,
-      kycAddressProof: supplier.kycAddressProof,
+      kycBusinessReg: `${process.env.BASE_URL}${supplier.kycBusinessReg}`,
+      kycTaxId: `${process.env.BASE_URL}${supplier.kycTaxId}`,
+      kycAddressProof: `${process.env.BASE_URL}${supplier.kycAddressProof}`,
       kycApproved: supplier.kycApproved,
     });
   } catch (error) {
@@ -78,7 +78,7 @@ router.post("/kyc/:supplierId/approve", async (req, res) => {
   }
 });
 
-//product review
+//product of suppliers
 router.get("/products/:supplierId", async (req, res) => {
   const { supplierId } = req.params;
 
@@ -125,6 +125,14 @@ router.post("/products/:productId/approve", async (req, res) => {
       data: { approved },
     });
 
+    await prisma.notification.updateMany({
+      where: {
+        productId: parseInt(product.id),
+        type: "product",
+        read: false,
+      },
+      data: { read: true },
+    });
     // Notify supplier if approved
     if (approved) {
       const supplier = await prisma.supplier.findUnique({ where: { id: product.supplierId } });
@@ -136,6 +144,52 @@ router.post("/products/:productId/approve", async (req, res) => {
     res.status(200).json({ message: `Product ${approved ? "approved" : "rejected"} successfully` });
   } catch (error) {
     console.error("Error updating product approval:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+//review product
+router.get('/productreview/:productId', async (req, res) => {
+  const { productId } = req.params;
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(productId) },
+    });
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    const photoUrl = product.photo ? `${process.env.BASE_URL}${product.photo}` : null;
+    res.json({ ...product, photo: photoUrl });
+  } catch (error) {
+    console.error('Error fetching product for review:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
+router.get("/suppliers/approved-kyc", async (req, res) => {
+  try {
+    const suppliers = await prisma.supplier.findMany({
+      where: {
+        kycApproved: true,
+      },
+      select: {
+        id: true,
+        ownerName: true,
+        email: true,
+        companyName: true,
+        phone: true,
+        address: true,
+        ownerPhoto: true,
+        companyPhotos: true,
+      },
+    });
+    const suppliersWithUrls = suppliers.map(supplier => ({
+      ...supplier,
+      ownerPhoto: supplier.ownerPhoto ? `${process.env.BASE_URL}${supplier.ownerPhoto}` : null,
+      companyPhotos: supplier.companyPhotos.map(photo => photo ? `${process.env.BASE_URL}${photo}` : null),
+    }));
+    res.status(200).json({ suppliers: suppliersWithUrls });
+  } catch (error) {
+    console.error("Error fetching approved suppliers:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

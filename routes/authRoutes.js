@@ -5,6 +5,7 @@ const { hashPassword, comparePassword, generateToken, verifyToken } = require('.
 const { sendEmail } = require('../utils/email');
 const router = express.Router()
 const prisma = new PrismaClient()
+const authMiddleware = require("../middleware/auth");
 
 const storage = multer.diskStorage({
     destination: "./uploads/",
@@ -61,7 +62,7 @@ router.post(
                 `Please verify your email by clicking this link: ${verificationLink}`
             ).catch((err) => console.error("Email failed:", err.message));
 
-            res.status(201).json({ message: "Supplier registered", supplierId: supplier.id });
+            res.status(201).json({ message: "Supplier registered,please check youre e-mail for varification!", supplierId: supplier.id });
         } catch (error) {
             console.error("Registration error:", error);
             if (error.code === "P2002") {
@@ -108,6 +109,39 @@ router.post("/login", async (req, res) => {
   
     const token = generateToken({ userId: supplier.id, role: supplier.role });
     res.json({ token });
+  });
+
+
+  router.get("/me", authMiddleware, async (req, res) => {
+    try {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: parseInt(req.userId) },
+        select: {
+          id: true,
+          ownerName: true,
+          email: true,
+          phone: true,
+          companyName: true,
+          address: true,
+          ownerPhoto: true,
+          companyPhotos: true,
+          kycApproved: true,
+          kycBusinessReg: true,
+          kycTaxId: true,
+          kycAddressProof: true,
+        },
+      });
+      if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+      const supplierWithUrls = {
+        ...supplier,
+        ownerPhoto: supplier.ownerPhoto ? `${process.env.BASE_URL}${supplier.ownerPhoto}` : null,
+        companyPhotos: supplier.companyPhotos.map(photo => photo ? `${process.env.BASE_URL}${photo}` : null),
+      };
+      res.status(200).json(supplierWithUrls);
+    } catch (error) {
+      console.error("Error fetching supplier details:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   });
 
 router.get("/getSuppliers", async (req, res) => {

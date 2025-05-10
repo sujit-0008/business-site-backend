@@ -14,7 +14,7 @@ datasource db {
 enum Role {
   ADMIN
   SUPPLIER
-  CUSTOMER // For future use
+  CUSTOMER 
 }
 model Notification {
   id        Int      @id @default(autoincrement())
@@ -42,6 +42,8 @@ model Product {
   notifications Notification[] // Opposite relation to Notification
 }
 
+
+
 model Supplier {
   id              Int       @id @default(autoincrement())
   ownerName       String
@@ -62,4 +64,21 @@ model Supplier {
   verificationTokenExpiry DateTime?
   notifications   Notification[]
   role            Role      @default(SUPPLIER) // Default to supplier
+  resetPasswordToken    String?  
+  resetPasswordExpiry   DateTime?
+}
+
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  address   String
+  phone     String
+  password  String
+  role      Role     @default(CUSTOMER) // Use the existing Role enum
+  resetPasswordToken    String?
+  resetPasswordExpiry   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
